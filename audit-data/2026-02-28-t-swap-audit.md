@@ -1,7 +1,7 @@
 ---
 title: Protocol Audit Report
-author: Diasfusuy
-date: February 28, 2025
+author: Yusuf Sahin
+date: February 28, 2026
 header-includes:
   - \usepackage{titling}
   - \usepackage{graphicx}
@@ -9,9 +9,12 @@ header-includes:
 
 <!-- Your report starts here! -->
 
-Prepared by: [Cyfrin](https://cyfrin.io)
-Lead Auditors: 
+Prepared by: Yusuf Sahin
+
+Lead Auditor:
 - Yusuf Sahin
+
+Codebase: T-Swap, an intentionally vulnerable training protocol from the [Cyfrin Updraft](https://updraft.cyfrin.io) smart contract security course.
 
 # Table of Contents
 - [Table of Contents](#table-of-contents)
@@ -28,13 +31,12 @@ Lead Auditors:
 - [Medium](#medium)
 - [Low](#low)
 - [Informational](#informational)
-- [Gas](#gas)
 
 # Protocol Summary
 
 The protocol starts as simply a `PoolFactory` contract. This contract is used to create new "pools" of tokens. It helps make sure every pool token uses the correct logic. But all the magic is in each `TSwapPool` contract. 
 
-You can think of each `TSwapPool` contract as it's own exchange between exactly 2 assets. Any ERC20 and the [WETH](https://etherscan.io/token/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2) token. These pools allow users to permissionlessly swap between an ERC20 that has a pool and WETH. Once enough pools are created, users can easily "hop" between supported ERC20s. 
+You can think of each `TSwapPool` contract as its own exchange between exactly 2 assets. Any ERC20 and the [WETH](https://etherscan.io/token/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2) token. These pools allow users to permissionlessly swap between an ERC20 that has a pool and WETH. Once enough pools are created, users can easily "hop" between supported ERC20s. 
 
 For example:
 1. User A has 10 USDC
@@ -52,7 +54,7 @@ We will talk about what those do in a little.
 
 # Disclaimer
 
-The Yusuf Sahin team makes all effort to find as many vulnerabilities in the code in the given time period, but holds no responsibilities for the findings provided in this document. A security audit by the team is not an endorsement of the underlying business or product. The audit was time-boxed and the review of the code was solely on the security aspects of the Solidity implementation of the contracts.
+Yusuf Sahin makes all effort to find as many vulnerabilities in the code in the given time period, but holds no responsibilities for the findings provided in this document. A security audit is not an endorsement of the underlying business or product. The audit was time-boxed and the review of the code was solely on the security aspects of the Solidity implementation of the contracts.
 
 # Risk Classification
 
@@ -89,7 +91,7 @@ We use the [CodeHawks](https://docs.codehawks.com/hawks-auditors/how-to-evaluate
 
 ## Issues found
 
-| Severtity | Number of issues found |
+| Severity  | Number of issues found |
 | --------- | ---------------------- |
 | High      | 4                      |
 | Medium    | 1                      |
@@ -129,9 +131,9 @@ We use the [CodeHawks](https://docs.codehawks.com/hawks-auditors/how-to-evaluate
     }
 ```
 
-### [H-2] Lack of slippage protection in `TSwapPool::swapExactOutput` causes users to potentially recieve way fewer tokens
+### [H-2] Lack of slippage protection in `TSwapPool::swapExactOutput` causes users to potentially receive way fewer tokens
 
-**Description:** The `swapExactOutput` function does not include any sort of slippage protection. This function is similar wo what is done in `TSwapPool::swapExactOutput`, where the function specifies a `minOutputAmount`, the `swapExactOutput` function should specify a `maxInputAmount`.
+**Description:** The `swapExactOutput` function does not include any sort of slippage protection. This function is similar to what is done in `TSwapPool::swapExactInput`, where the function specifies a `minOutputAmount`, the `swapExactOutput` function should specify a `maxInputAmount`.
 
 **Impact:** If market conditions change before the transaction process, the user could get a much worse swap.
 
@@ -144,14 +146,14 @@ We use the [CodeHawks](https://docs.codehawks.com/hawks-auditors/how-to-evaluate
     4. deadline = whatever
 3. The function does not offer a maxInput amount
 4. As the transaction is pending in the mempool, the market changes! And the price moves HUGE -> 1 WETH is now 10,000 USDC. 10x more than the user expected
-5. The transaction completes, but the user sent the protocol 10,000 USDC isntead of 1,000 USDC
+5. The transaction completes, but the user sent the protocol 10,000 USDC instead of 1,000 USDC
 
 **Recommended Mitigation:** We should include a `maxInputAmount` so the user only has to spend up to a specific amount, and can predict how much they will spend on the protocol.
  
 ```diff
     function swapExactOutput(
         IERC20 inputToken,
-+       uin256 maxInputAmount,
++       uint256 maxInputAmount,
 .
 .
 .
@@ -168,9 +170,9 @@ We use the [CodeHawks](https://docs.codehawks.com/hawks-auditors/how-to-evaluate
 
 ```
 
-### [H-3] `TSwapPool::seelPoolTokens` mismatch input and output tokens causing users to recieve the incorrect amount of tokens
+### [H-3] `TSwapPool::sellPoolTokens` mismatches input and output tokens, causing users to receive the incorrect amount of tokens
 
-**Description:** The `sellPoolTokens` function is intended to allow users to easily sell pool tokens and recieve WETH in exchange. Users indicate how many pool tokens whey're willing to sell in the `poolTokenAmount` parameeter. However, the function currently miscalculates the swapped amount. 
+**Description:** The `sellPoolTokens` function is intended to allow users to easily sell pool tokens and receive WETH in exchange. Users indicate how many pool tokens they're willing to sell in the `poolTokenAmount` parameter. However, the function currently miscalculates the swapped amount. 
 
 This is due to the fact that the `swapExactOutput` function is called, whereas the `swapExactInput` function is the one that should be called. Because users specify the exact amount of input tokens, not output. 
 
@@ -227,33 +229,33 @@ function testSellPoolTokensSwapsWrongAmount() public {
 
 **Recommended Mitigation:** 
 
-Consider changin implementation to use `swapExactInput` instead of `swapExactOutput`. Note that this would also require changing the `sellPoolTokens` function to accept a new paramete (ie `minWethToRecieve` to be passed to `swapExactInput`)
+Consider changing the implementation to use `swapExactInput` instead of `swapExactOutput`. Note that this would also require changing the `sellPoolTokens` function to accept a new parameter (ie `minWethToReceive` to be passed to `swapExactInput`)
 
 ```diff
 function sellPoolTokens(
     uint256 poolTokenAmount,
-+   uint256 minWetToReceive,
++   uint256 minWethToReceive,
     ) external returns 
     (uint256 wethAmount) {
 -       return swapExactOutput(i_poolToken, i_wethToken,
 -           poolTokenAmount, uint64(block.timestamp));
 +       return swapExactInput(i_poolToken, poolTokenAmount, i_wethToken,
-+           minWettoRecieve, uint64(block.timestamp));
++           minWethToReceive, uint64(block.timestamp));
     }
 ```
 
-Additionally, it might be wse to add deadline to the function, as there is currently no deadline. 
+Additionally, it might be wise to add deadline to the function, as there is currently no deadline. 
 
-### [H-4] `TSwapPool::_swap` the extra tokens given to users after every `swapCount` breas the protocol invariant of `x * y = k`
+### [H-4] `TSwapPool::_swap` the extra tokens given to users after every `swapCount` breaks the protocol invariant of `x * y = k`
 
 **Description:** The protocol follows a strict invariant of `x * y = k`. Where: 
 - `x`: The balance of the pool token
 - `y`: The balance of WETH
 - `k`: The constant product of the two balances
 
-This measn, that whenever the balances change in the protocol, the ratio between the two amounts should remain constant, hence the `k`. However, this is broken due to the extra incentive in the `_swap` function. Meaning that over time the protocol funds will be drained.
+This means, that whenever the balances change in the protocol, the ratio between the two amounts should remain constant, hence the `k`. However, this is broken due to the extra incentive in the `_swap` function. Meaning that over time the protocol funds will be drained.
 
-The follwoing bock of code is responsible for the issue. 
+The following block of code is responsible for the issue. 
 
 ```javascript
 
@@ -271,7 +273,9 @@ Most simply put, the protocol's core invariant is broken.
 
 **Proof of Concept:**
 1. A user swaps 10 times, and collects the extra incentive of `1_000_000_000_000_000_000` tokens
-2. That user continues to wsap until all the protocol funds are drained
+2. That user continues to swap until all the protocol funds are drained
+
+The stateful invariant fuzz tests in `test/invariant` also catch this: after a random sequence of deposits and swaps, the pool's WETH balance is off by exactly the 1 WETH bonus, and once the pool holds less than 1 WETH the 10th swap reverts.
 
 <details>
 <summary>Proof Of Code</summary>
@@ -285,34 +289,35 @@ Place the following into `TSwapPool.t.sol`
         poolToken.approve(address(pool), 100e18);
         pool.deposit(100e18, 100e18, 100e18, uint64(block.timestamp));
         vm.stopPrank();
-        
+
         uint256 outputWeth = 1e17;
 
         vm.startPrank(user);
         poolToken.approve(address(pool), type(uint256).max);
-        poolToken.mint(user, 10e18);
-        pool.swapExactOutput(poolToken, weth, outputWeth, uint64(block.timestamp));
-        pool.swapExactOutput(poolToken, weth, outputWeth, uint64(block.timestamp));
-        pool.swapExactOutput(poolToken, weth, outputWeth, uint64(block.timestamp));
-        pool.swapExactOutput(poolToken, weth, outputWeth, uint64(block.timestamp));
-        pool.swapExactOutput(poolToken, weth, outputWeth, uint64(block.timestamp));
-        pool.swapExactOutput(poolToken, weth, outputWeth, uint64(block.timestamp));
-        pool.swapExactOutput(poolToken, weth, outputWeth, uint64(block.timestamp));
-        pool.swapExactOutput(poolToken, weth, outputWeth, uint64(block.timestamp));
+        poolToken.mint(user, 100e18);
+        // Nine swaps bring swap_count to 9.
+        for (uint256 i = 0; i < 9; i++) {
+            pool.swapExactOutput(poolToken, weth, outputWeth, uint64(block.timestamp));
+        }
+
+        // Measure the pool right before the 10th swap, which pays the bonus.
+        int256 startingY = int256(weth.balanceOf(address(pool)));
+        int256 expectedDeltaY = int256(-1) * int256(outputWeth);
+
         pool.swapExactOutput(poolToken, weth, outputWeth, uint64(block.timestamp));
         vm.stopPrank();
 
-        int256 startingY= int256(weth.balanceOf(address(pool)));
-        int256 expectedDeltaY = int256(-1) * int256(outputWeth);
-  
         uint256 endingY = weth.balanceOf(address(pool));
-        int256 actualDeltaY = int256(endingY) - int256(startingY); 
-        assertEq(actualDeltaY, expectedDeltaY);
+        int256 actualDeltaY = int256(endingY) - int256(startingY);
+
+        // x * y = k says the pool should lose exactly outputWeth. It loses an extra 1 WETH bonus instead.
+        assertEq(actualDeltaY, expectedDeltaY - 1e18);
+        assertLt(actualDeltaY, expectedDeltaY);
     }
 ```
 </details>
 
-**Recommended Mitigation:** Remove the extra incentive. If you want to keep this in, we should account for the change in the x * y = k protocol invaariant. Or, we shuld set aside tokens in the same way we do with fees. 
+**Recommended Mitigation:** Remove the extra incentive. If you want to keep this in, we should account for the change in the x * y = k protocol invariant. Or, we should set aside tokens in the same way we do with fees. 
 
 ```diff
 -        swap_count++;
@@ -353,11 +358,11 @@ function deposit(
 
 ## Low 
 
-### [L-1] `TSwapPool::LiquiditAdded` event has parameters are out of order
+### [L-1] `TSwapPool::LiquidityAdded` event parameters are out of order
 
-**Description:** When the `LiquiditAdded` event is emitted in the `TSwapPool::_addLiquidityMintAndTransfer` fnction. it logs value in an incorrect order. The `poolTokensToDeposit` value should go in the third parameter position, whereas the `wethToDeposit` value should go second.
+**Description:** When the `LiquidityAdded` event is emitted in the `TSwapPool::_addLiquidityMintAndTransfer` function, it logs values in an incorrect order. The `poolTokensToDeposit` value should go in the third parameter position, whereas the `wethToDeposit` value should go second.
 
-**Impact:** Event emission is incorrect, leading to off-chain functions potentially malfunnctioning. 
+**Impact:** Event emission is incorrect, leading to off-chain functions potentially malfunctioning. 
 
 **Recommended Mitigation:** 
 
@@ -368,11 +373,9 @@ function deposit(
 
 ### [L-2] Default value returned by `TSwapPool::swapExactInput` results in incorrect return value given
 
-**Description:** the `swapExactInput` function is expected to return the actual amount of tokens bought by the caller. However, while it declares the named return value `output` it is never assigned a value, nor uses an explicit return statement.
+**Description:** The `swapExactInput` function is expected to return the actual amount of tokens bought by the caller. However, while it declares the named return value `output` it is never assigned a value, nor uses an explicit return statement.
 
-**Impact:** The return value wull always be 0, giving incorrect information to the caaller.
-
-**Proof of Concept:**
+**Impact:** The return value will always be 0, giving incorrect information to the caller.
 
 **Recommended Mitigation:** 
 
@@ -397,7 +400,7 @@ function deposit(
 -        revert TSwapPool__OutputTooLow(outputAmount, minOutputAmount);
 -    }
 +    if (output < minOutputAmount) {
-+        revert TSwapPool__OutputTooLow(outputAmount, minOutputAmount);
++        revert TSwapPool__OutputTooLow(output, minOutputAmount);
 +    }
 
 -    _swap(inputToken, inputAmount, outputToken, outputAmount);

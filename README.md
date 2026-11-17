@@ -1,3 +1,21 @@
+# T-Swap Security Review
+
+**Security review by Yusuf Sahin** · February 2026
+
+- 📄 Full report: [audit-data/report.pdf](audit-data/report.pdf) ([Markdown](audit-data/2026-02-28-t-swap-audit.md))
+- 🔎 12 findings: **4 High, 1 Medium, 2 Low, 5 Informational**
+- 🧪 Proof-of-concept tests: `test/unit/TSwapPool.t.sol` (`testInvariantBroken`, `testSellPoolTokensSwapsWrongAmount`)
+- ♾️ Stateful invariant fuzzing: `test/invariant/`. These tests **fail on purpose**: they show the swap bonus breaking `x * y = k` (H-4).
+
+This is a practice audit of T-Swap, an intentionally vulnerable training codebase from the [Cyfrin Updraft](https://updraft.cyfrin.io) smart contract security course. The original protocol README follows below.
+
+```bash
+forge test                                  # unit PoCs pass; invariant tests fail by design
+forge test --match-test testInvariantBroken -vv
+```
+
+---
+
 <p align="center">
 <img src="./images/t-swap-youtube-dimensions.png" width="400" alt="t-swap">
 <br/>

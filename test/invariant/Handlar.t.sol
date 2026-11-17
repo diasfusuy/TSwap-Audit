@@ -30,6 +30,10 @@ contract Handlar is Test {
     }
 
     function swapPoolTokenForWethBasedOnOutputWeth(uint256 outputWeth) public {
+        // The swap bonus can drain the pool below the minimum, which would make bound() revert.
+        if (weth.balanceOf(address(pool)) <= pool.getMinimumWethDepositAmount()) {
+            return;
+        }
         outputWeth = bound(
             outputWeth, 
             pool.getMinimumWethDepositAmount(), 
@@ -43,7 +47,9 @@ contract Handlar is Test {
             poolToken.balanceOf(address(pool)),
             weth.balanceOf(address(pool))
         );
-        if(poolTokenAmount >= type(uint64).max) {
+        // uint64 was too tight: most swaps returned early, so swap_count never reached 10
+        // and the bonus that breaks x * y = k was never exercised.
+        if(poolTokenAmount >= type(uint128).max) {
             return;
         }
 

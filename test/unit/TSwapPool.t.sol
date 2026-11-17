@@ -98,29 +98,30 @@ contract TSwapPoolTest is Test {
         poolToken.approve(address(pool), 100e18);
         pool.deposit(100e18, 100e18, 100e18, uint64(block.timestamp));
         vm.stopPrank();
-        
+
         uint256 outputWeth = 1e17;
 
         vm.startPrank(user);
         poolToken.approve(address(pool), type(uint256).max);
-        poolToken.mint(user, 10e18);
-        pool.swapExactOutput(poolToken, weth, outputWeth, uint64(block.timestamp));
-        pool.swapExactOutput(poolToken, weth, outputWeth, uint64(block.timestamp));
-        pool.swapExactOutput(poolToken, weth, outputWeth, uint64(block.timestamp));
-        pool.swapExactOutput(poolToken, weth, outputWeth, uint64(block.timestamp));
-        pool.swapExactOutput(poolToken, weth, outputWeth, uint64(block.timestamp));
-        pool.swapExactOutput(poolToken, weth, outputWeth, uint64(block.timestamp));
-        pool.swapExactOutput(poolToken, weth, outputWeth, uint64(block.timestamp));
-        pool.swapExactOutput(poolToken, weth, outputWeth, uint64(block.timestamp));
+        poolToken.mint(user, 100e18);
+        // Nine swaps bring swap_count to 9.
+        for (uint256 i = 0; i < 9; i++) {
+            pool.swapExactOutput(poolToken, weth, outputWeth, uint64(block.timestamp));
+        }
+
+        // Measure the pool right before the 10th swap, which pays the bonus.
+        int256 startingY = int256(weth.balanceOf(address(pool)));
+        int256 expectedDeltaY = int256(-1) * int256(outputWeth);
+
         pool.swapExactOutput(poolToken, weth, outputWeth, uint64(block.timestamp));
         vm.stopPrank();
 
-        int256 startingY= int256(weth.balanceOf(address(pool)));
-        int256 expectedDeltaY = int256(-1) * int256(outputWeth);
-  
         uint256 endingY = weth.balanceOf(address(pool));
-        int256 actualDeltaY = int256(endingY) - int256(startingY); 
-        assertEq(actualDeltaY, expectedDeltaY);
+        int256 actualDeltaY = int256(endingY) - int256(startingY);
+
+        // x * y = k says the pool should lose exactly outputWeth. It loses an extra 1 WETH bonus instead.
+        assertEq(actualDeltaY, expectedDeltaY - 1e18);
+        assertLt(actualDeltaY, expectedDeltaY);
     }
 
     function testSellPoolTokensSwapsWrongAmount() public {
