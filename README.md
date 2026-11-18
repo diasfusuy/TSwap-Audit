@@ -7,7 +7,7 @@
 - 🧪 Proof-of-concept tests: `test/unit/TSwapPool.t.sol` (`testInvariantBroken`, `testSellPoolTokensSwapsWrongAmount`)
 - ♾️ Stateful invariant fuzzing: `test/invariant/`. These tests **fail on purpose**: they show the swap bonus breaking `x * y = k` (H-4).
 
-This is a practice audit of T-Swap, an intentionally vulnerable training codebase from the [Cyfrin Updraft](https://updraft.cyfrin.io) smart contract security course. The original protocol README follows below.
+Codebase: T-Swap, from [Cyfrin](https://www.cyfrin.io)'s open-source smart contract security curriculum. The original protocol README follows below.
 
 ```bash
 forge test                                  # unit PoCs pass; invariant tests fail by design

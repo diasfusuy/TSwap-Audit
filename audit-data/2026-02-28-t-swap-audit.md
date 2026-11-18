@@ -14,7 +14,7 @@ Prepared by: Yusuf Sahin
 Lead Auditor:
 - Yusuf Sahin
 
-Codebase: T-Swap, an intentionally vulnerable training protocol from the [Cyfrin Updraft](https://updraft.cyfrin.io) smart contract security course.
+Codebase: T-Swap, from [Cyfrin](https://www.cyfrin.io)'s open-source smart contract security curriculum.
 
 # Table of Contents
 - [Table of Contents](#table-of-contents)
